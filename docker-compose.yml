@@ -1,0 +1,44 @@
+logstash:
+    image: logstash
+    restart: always
+    command: "/opt/logstash/bin/logstash agent -f /etc/logstash.conf"
+    volumes:
+     - "./logstash.conf:/etc/logstash.conf:ro"
+    volumes_from:
+     - snort
+    links:
+     - "es:elasticsearch"
+idstools:
+    image: forspam20/docker-py-idstools
+    restart: always
+    command: "idstools-u2json --snort-conf /data/etc/snort/snort.conf     --directory /data/var/log/snort     --prefix *.unified2.*     --follow     --delete --output /data/var/log/snort/alerts.json"
+    volumes:
+     - "./logstash.conf:/etc/logstash.conf:ro"
+    volumes_from:
+     - snort
+es:
+    image: elasticsearch
+    restart: always
+    volumes:
+     - "./es/data:/usr/share/elasticsearch/data"
+     - "./es/plugins:/usr/share/elasticsearch/plugins"
+    ports:
+     - "9200:9200"
+     - "9300:9300"
+kibana:
+    image: kibana
+    restart: always
+    links:
+     - "es:elasticsearch"
+    ports:
+     - "5601:5601"
+snort:
+  restart: always
+  volumes:
+    - ./data:/data
+  privileged: true
+  net: host
+  command: snort -c /data/etc/snort/snort.conf -i eth0
+  environment:
+    - "OINKCODE="
+  build: ./docker-snort
